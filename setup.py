@@ -17,6 +17,6 @@ setup(
     ],
     
     python_requires='>=3.6',
-    author='Yeow Shiau Yen',
-    author_email='syeo0021@student.monash.edu'
+    author='Yeow Shiau Yen, Ng Hui Ying, Randy Goh Umpu',
+    author_email='syeo0021@student.monash.edu, hngg0024@student.monash.edu, rgoh0003@student.monash.edu'
 )

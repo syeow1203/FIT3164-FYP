@@ -7,5 +7,5 @@ def load_model():
     dir_path = os.path.dirname(__file__) 
     model_path = os.path.join(dir_path, 'data', 'model.pkl')
     
-    model = joblib.load(model_path)
-    return model
+    models = joblib.load(model_path)
+    return models

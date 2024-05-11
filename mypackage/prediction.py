@@ -7,272 +7,28 @@ Original file is located at
     https://colab.research.google.com/drive/1RUI6kdtW6fmLxWhKHMFLnjftxZ07Eavq
 """
 
+from .load_model import load_model
 import pandas as pd
 import numpy as np
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# from sklearn.model_selection import train_test_split, GridSearchCV, RepeatedKFold
-# from sklearn.linear_model import LinearRegression
-# from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
-# from sklearn.feature_selection import SequentialFeatureSelector
-# from google.colab import files
-# from sklearn.neighbors import KNeighborsRegressor
-# from sklearn.ensemble import RandomForestRegressor
-# from sklearn.ensemble import StackingRegressor
-# from sklearn.ensemble import GradientBoostingRegressor
-# from sklearn.ensemble import ExtraTreesRegressor
-import joblib
-# import doctest
-
 
 import warnings
 warnings.filterwarnings("ignore")
 
-# uploaded = files.upload()
 
-# df = pd.read_excel('STP bioeffluent dataset [Updated].xlsx',sheet_name='Sheet1')
-
-# # make a copy of the df before conversion
-# ori_df = df.copy()
-
-# # convert all columns to numeric, except 'Year' 'Month' 'Area'
-# df[df.columns[2:-1]] = df[df.columns[2:-1]].apply(pd.to_numeric, errors = 'coerce')
-
-# # before conversion
-# df.describe().round(2)
-
-# # Identify objects converted to NaN for each column
-# NaN = {}
-
-# for col in df.columns[2:-1]:
-#     converted = ori_df[col][ori_df[col].notnull() & df[col].isnull()].unique()
-#     if len(converted) > 0:
-#         NaN[col] = converted
-
-# for col, converted in NaN.items():
-#     print(f"{col}:")
-#     print(converted)
-
-# # determine which columns have minimum values smaller than the converted objects
-# # and replace NaN values with converted object divided by 2
-
-# for col, converted in NaN.items():
-#       min_value = df[col].min()
-#       for obj in converted:
-#           if min_value < float(obj.lstrip("<=")):
-#               print(f"Minimum valuen in '{col}' = {min_value} {obj}")
-
-#           # replace NaN values
-#           converted_value = float(obj.lstrip("<=")) / 2
-#           df[col].fillna(converted_value, inplace=True)
-
-# # after conversion
-# df.isna().sum()
-
-# df.dropna(inplace=True)
-
-# df = df[(df['COD'] < 186)]
-# corr_matrix = df.corr(numeric_only=True)
-
-# # plot the correlation matrix
-# plt.figure(figsize=(10, 8))
-# sns.heatmap(corr_matrix, annot=True, cmap='coolwarm', fmt=".2f", linewidths=0.5)
-# plt.title('Correlation Matrix')
-# plt.show()
-
-# # Drop features
-# df.drop(['Area', 'Year', 'Month'], axis=1, inplace=True)
-
-# # Separate features and targets
-# targets = df[['BOD', 'COD', 'Ammonia (NH3)', 'Nitrate (NO3)']]
-
-# train_sets = {}
-# test_sets = {}
-
-# for target in targets:
-#   features = df.drop([target], axis = 1)
-#   X_train, X_test, y_train, y_test = train_test_split(features, targets[target], test_size=0.25, random_state=42)
-
-#   train_sets[target] = {'X_train': X_train, 'y_train': y_train}
-#   test_sets[target] = {'X_test': X_test, 'y_test': y_test}
-
-#   # Print the training set
-#   print(f"Shape of Training and Testing sets for {target}:")
-#   print(X_train.shape)
-#   print(X_test.shape)
-
-# LR_models = {}
-
-# for target, train_set in train_sets.items():
-#   X_train = train_set['X_train']
-#   y_train = train_set['y_train']
-
-#  # Fit
-#   model = LinearRegression()
-#   model.fit(X_train, y_train)
-
-#   LR_models[target] = model
-
-#   train_score = model.score(X_train, y_train)
-
-#   print(f"Training score (R^2) of {target} : {train_score}", "\n")
-
-# # Predict
-#   X_test = test_sets[target]['X_test']
-
-#   y_test = test_sets[target]['y_test']
-#   y_pred = model.predict(X_test)
-
-# selected_train_sets = {}
-# selected_test_sets = {}
-
-# for target, train_set in train_sets.items():
-#     X_train = train_set['X_train']
-#     y_train = train_set['y_train']
-
-#     feature_names = X_train.columns.tolist()
-
-#     if target == 'BOD':
-#       selector = SequentialFeatureSelector(LinearRegression(), n_features_to_select = 3, direction = 'forward', scoring = 'r2', cv = 5)
-
-#     else:
-#       selector = SequentialFeatureSelector(LinearRegression(), n_features_to_select = 5 if target == 'COD' else 6, direction = 'forward', scoring = 'r2', cv = 5)
-
-#     selector.fit(X_train, y_train)
-
-#     # Get selected features
-#     if target == 'BOD':
-#       selected_features = X_train
-#     else:
-#       selected_features = selector.get_support()
-#     selected = []
-
-#     for i, feature in enumerate(selected_features):
-#         if feature:
-#             selected.append(feature_names[i])
-#     print(selected)
-
-#     X_test = test_sets[target]['X_test']
-#     y_test = test_sets[target]['y_test']
-
-#     if target != 'BOD':
-#       X_train = selector.transform(X_train)
-#       X_test = selector.transform(X_test)
-
-#     # Store X_train with only selected variables
-#     selected_train_sets[target] = {'X_train': X_train, 'y_train': y_train}
-
-#     model = LinearRegression()
-#     model.fit(X_train, y_train)
-
-#     selected_test_sets[target] = {'X_test': X_test, 'y_test': y_test}
-
-#     train_score = model.score(X_train, y_train)
-
-
-#     y_pred = model.predict(X_test)
-
-# models = {}
-
-# for target in ['BOD', 'Ammonia (NH3)', 'Nitrate (NO3)']:
-#   train_set = train_sets[target]
-#   X_train = train_set['X_train']
-#   y_train = train_set['y_train']
-
-#   if target == 'Nitrate (NO3)':
-#     model = RandomForestRegressor()
-
-#   else:
-#     model = ExtraTreesRegressor()
-
-#   model.fit(X_train, y_train)
-#   models[target] = model
-
-# train_set = selected_train_sets['COD']
-# X_train = train_set['X_train']
-# y_train = train_set['y_train']
-
-# knn = KNeighborsRegressor(algorithm='auto', leaf_size=50, n_neighbors=9, weights='distance')
-# knn.fit(X_train, y_train)
-
-# gbr = GradientBoostingRegressor(alpha=0.1, learning_rate=0.1, loss='huber', n_estimators=200)
-# gbr.fit(X_train, y_train)
-
-
-# y_pred_knn = knn.predict(X_train)
-# y_pred_gbr = gbr.predict(X_train)
-
-# stacked_features = np.column_stack((y_pred_knn, y_pred_gbr))
-# meta_model = LinearRegression()
-# meta_model.fit(stacked_features, y_train)
-
-# models['COD'] = {'knn': knn, 'gbr': gbr, 'meta_model': meta_model}
-# joblib.dump(models, 'model.pkl')
-
-# df_val = pd.read_excel('STP bioeffluent dataset [Updated].xlsx',sheet_name='Validation')
-# ori_val = df_val.copy()
-
-# # Preprocess the validation set
-# df_val[df_val.columns[2:-1]] = df_val[df_val.columns[2:-1]].apply(pd.to_numeric, errors = 'coerce')
-
-# # Identify objects converted to NaN for each column
-# NaN = {}
-
-# for col in df_val.columns[2:-1]:
-#     converted = ori_val[col][ori_val[col].notnull() & df_val[col].isnull()].unique()
-#     if len(converted) > 0:
-#         NaN[col] = converted
-
-# for col, converted in NaN.items():
-#       min_value = df_val[col].min()
-#       for obj in converted:
-#           if min_value < float(obj.lstrip("<=")):
-#               print(f"Minimum value in '{col}' = {min_value} {obj}")
-
-#           # replace NaN values
-#           converted_value = float(obj.lstrip("<=")) / 2
-#           df_val[col].fillna(converted_value, inplace=True)
-
-# df_val.drop(['Area', 'Year', 'Month'], axis=1, inplace=True)
-
-# def separate_xy(df):
-
-#   targets = df[['BOD', 'COD', 'Ammonia (NH3)', 'Nitrate (NO3)']]
-#   validation_sets = {}
-
-#   for target in targets:
-#     X_val = df.drop([target], axis = 1)
-#     y_val = df[[target]]
-
-#     validation_sets[target] = {'X_val': X_val, 'y_val': y_val}
-
-#   return validation_sets
-
-
-# without_na = separate_xy(df_val.dropna())
-# with_na = separate_xy(df_val[df_val.isna().any(axis=1)])
-# print(with_na["BOD"]["X_val"])
-
-# # split validation set into multiple random equal sets
-# def split_validation(df, sets_no):
-#   df_shuffled = df.sample(frac=1).reset_index(drop=True)
-#   sets = np.array_split(df_shuffled, sets_no)
-#   sets = [pd.DataFrame(split) for split in sets]
-#   return sets
-
-def prediction(model_path, input):
+def prediction(input):
 
     # Load models
-    try:
-      models = joblib.load(model_path)
-      model_bod = models['BOD']
-      model_nh3 = models['Ammonia (NH3)']
-      model_no3 = models['Nitrate (NO3)']
-      knn = models['COD']['knn']
-      gbr = models['COD']['gbr']
-      meta_model = models['COD']['meta_model']
-    except Exception as e:
-      return
+
+    models = load_model()
+
+    model_bod = models['BOD']
+    model_nh3 = models['Ammonia (NH3)']
+    model_no3 = models['Nitrate (NO3)']
+    knn = models['COD']['knn']
+    gbr = models['COD']['gbr']
+    meta_model = models['COD']['meta_model']
+
+
 
     if isinstance(input, pd.DataFrame):
       input.dropna(inplace=True)
@@ -341,5 +97,3 @@ def prediction(model_path, input):
               final_results = final_results.loc[:, ~final_results.columns.duplicated()]
               return final_results
           return None
-
-# prediction("model.pkl", df_val)
