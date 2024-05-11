@@ -9,7 +9,6 @@ setup(
     },
     include_package_data=True,
     description='A simple prediction package',
-    long_description=open('README.md').read(),
     install_requires=[
         "numpy",
         "pandas",
