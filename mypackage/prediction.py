@@ -15,85 +15,140 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
+
 def prediction(input):
-
-    # Load models
-
-    models = load_model()
-
-    model_bod = models['BOD']
-    model_nh3 = models['Ammonia (NH3)']
-    model_no3 = models['Nitrate (NO3)']
-    knn = models['COD']['knn']
-    gbr = models['COD']['gbr']
-    meta_model = models['COD']['meta_model']
-
-
-
+    '''
+    Input : a Pandas DataFrame with essential wastewater attributes
+    Output: a Pandas DataFrame merging input data with predicted chemical compositions
+    '''
+    # Type Checking: check if input is a Pandas Data Frame
     if isinstance(input, pd.DataFrame):
+
+      # Remove rows with any missing values
       input.dropna(inplace=True)
 
+      # Initialise list to store columns that cannot be converted to float
       columns_to_drop = []
+
+      # Iterate through each column in the input DataFrame
       for column in input.columns:
+
+        # Check if the column's data type is not float or int
         if input[column].dtype not in [np.float64, np.int64]:
           try:
+            # Attempt to convert the column to float
             input[column] = input[column].astype(float)
           except (TypeError, ValueError):
+            # If conversion fails, mark the column for dropping
             columns_to_drop.append(column)
 
+      # Drop columns that couldn't be converted to float
       input.drop(columns = columns_to_drop, inplace = True)
 
+      # Check if the DataFrame is not empty after processing
       if not input.empty:
 
-          # Preprocess user input
+          # Preprocess: Extract the list of column headers from the input
           header = input.columns.tolist()
+
+          # Define the sub-header list for necessary attributes
           sub_header = ["COD", "pH", "Oil & Grease", "Suspended Solid", "Temp"]
+
+          # Initialise a dictionary to track the prediction status of each attributes
           status = {'BOD': False, 'COD': False, 'Ammonia (NH3)': False, 'Nitrate (NO3)': False}
 
-          # To store results dataframes
+          # Initalise a list to store results DataFrame
           results = []
 
-          # COD
+          # Load pre-trained models for prediction
+          models = load_model()
+
+          #--- COD Prediction ---#
+          # Define the column headers required for COD prediction
           cod_header = ['BOD', 'Ammonia (NH3)', 'Nitrate (NO3)', 'Oil & Grease', 'Suspended Solid']
+
+          # Check if all required columns for COD prediction are present
           if all(item in header for item in cod_header):
+
+              # Retrieve the models for COD prediction
+              knn = models['COD']['knn']
+              gbr = models['COD']['gbr']
+
+              # Extract the relevant columns for COD prediction
               cod_input = input[cod_header]
-              cod_features = np.column_stack([knn.predict(cod_input), gbr.predict(cod_input)])
-              pred_cod = meta_model.predict(cod_features)
+
+              # Predict COD using the KNN and GBR models and combine their outputs
+              y_pred_knn = knn.predict(cod_input)
+              y_pred_gbr = gbr.predict(cod_input)
+              pred_cod = (y_pred_knn + y_pred_gbr) / 2
+
+              # Create a DataFrame for the predicted COD values
               pred_cod_df = pd.DataFrame(pred_cod, columns=['Predicted_COD'], index=cod_input.index)
+              # Combine the input data with the predicted COD values
               cod_results = pd.concat([cod_input, pred_cod_df], axis=1)
               results.append(cod_results)
               status['COD'] = True
 
           # Filter input (BOD, NH3, NO3)
           if all(item in header for item in sub_header):
+
+              #--- BOD Prediction ---#
               if all(item in input.columns for item in ['Ammonia (NH3)', 'Nitrate (NO3)']):
+                  # Retrieve the model for BOD prediction
+                  model_bod = models['BOD']
+                  # Define the attributes required for BOD prediction
                   bod_header = ['COD', 'Ammonia (NH3)', 'Nitrate (NO3)'] + sub_header[1:]
+                  # Extract the relevant attributes and make prediction
                   bod_input = input[bod_header]
                   pred_bod = model_bod.predict(bod_input)
+                  # Create a DataFrame for the predicted BOD values
                   pred_bod_df = pd.DataFrame(pred_bod, columns=['Predicted_BOD'], index=bod_input.index)
+                  # Combine the input data with the predicted values
                   results.append(pd.concat([bod_input, pred_bod_df], axis=1))
                   status['BOD'] = True
 
+              #--- Ammonia Prediction ---#
               if all(item in input.columns for item in ['BOD', 'Nitrate (NO3)']):
+
+                  # Retrieve the model for Ammonia prediction
+                  model_nh3 = models['Ammonia (NH3)']
+                  # Define the attributes required for Ammonia prediction
                   nh3_header = ['BOD', 'COD', 'Nitrate (NO3)'] + sub_header[1:]
+                  # Extract the relevant attributes and make prediction
                   nh3_input = input[nh3_header]
                   pred_nh3 = model_nh3.predict(nh3_input)
+                  # Create a DataFrame for the predicted Ammonia values
                   pred_nh3_df = pd.DataFrame(pred_nh3, columns=['Predicted_NH3'], index=nh3_input.index)
+                  # Combine the input data with the predicted Ammonia values
                   results.append(pd.concat([nh3_input, pred_nh3_df], axis=1))
                   status['Ammonia (NH3)'] = True
 
+              #--- Nitrate Prediction ---#
               if all(item in input.columns for item in ['BOD', 'Ammonia (NH3)']):
+                  # Retrieve the model for Nitrate prediction
+                  model_no3 = models['Nitrate (NO3)']
+                  # Define the attributes required for Nitrate prediction
                   no3_header = ['BOD', 'COD', 'Ammonia (NH3)'] + sub_header[1:]
+                  # Extract the relevant attributes and make prediction
                   no3_input = input[no3_header]
                   pred_no3 = model_no3.predict(no3_input)
+                  # Create a DataFrame for the predicted Nitrate values
                   pred_no3_df = pd.DataFrame(pred_no3, columns=['Predicted_NO3'], index=no3_input.index)
+                  # Combine the input data with the predicted Nitrate values
                   results.append(pd.concat([no3_input, pred_no3_df], axis=1))
                   status['Nitrate (NO3)'] = True
 
 
-          # Combine all results
+          # Combine all results into a single DataFrame
           if results:
+              # Remove any duplicated columns in the combined DataFrame
               final_results = pd.concat(results, axis=1)
+              # Return the final combined DataFrame with predictions
               final_results = final_results.loc[:, ~final_results.columns.duplicated()]
               return final_results
+
+          # Return None if no results were generated
           return None
+    # Return an error message if the input is not a Pandas DataFrame
+    else:
+      return "Invalid type: Input must be of form Data Frame!"
